@@ -18,7 +18,7 @@ client.on('ready', ()=>{
     console.log('Redis Client Connected');
 })
 
-const jobQueue = new Queue('jobQueue', {
+const clickQueue = new Queue('Clicks', {
     connection: {
         host: process.env.REDIS_HOST,
         port: process.env.REDIS_PORT,
@@ -28,15 +28,15 @@ const jobQueue = new Queue('jobQueue', {
 });
 console.log('BullMQ Job Queue Created');
 
-// const connectDB = async () => {
-//     try{
-//         await client.connect();
-//         console.log('Connected to Redis');
-//     }
-//     catch(err){
-//         console.error('Could not connect to Redis', err);
-//         process.exit(1);
-//     }
-// }
+const connectRedis = async () => {
+    try{
+        await client.connect();
+        console.log('Connected to Redis');
+    }
+    catch(err){
+        console.error('Could not connect to Redis', err);
+        process.exit(1);
+    }
+}
 
-export { client, jobQueue };
+export { client, connectRedis, clickQueue };
