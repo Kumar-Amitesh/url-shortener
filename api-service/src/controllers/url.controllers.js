@@ -15,8 +15,9 @@ const redirect = async (req, res) => {
     }
 
     recordClick(req, code);
+    console.log(`Redirecting code: ${code} to URL: ${longUrl}`);
 
-    res.redirect(301, longUrl);
+    res.redirect(307, longUrl);
   } catch (error) {
     logger.error("redirect_error", { error: error.message });
     res.status(500).json({ message: "Internal Server Error" });
