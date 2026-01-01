@@ -16,7 +16,7 @@ const redirect = async (req, res) => {
 const shorten = async (req, res) => {
   const { longUrl } = req.body;
 
-  const code = nanoid(8);
+  const code = nanoid(5);
 
   await pool.query(
     "INSERT INTO short_urls (code, long_url) VALUES ($1,$2)",
