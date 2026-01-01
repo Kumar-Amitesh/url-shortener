@@ -15,20 +15,22 @@ dotenv.config({
 
 const app = express();
 
-app.use(express.json());
-app.use(cors({ origin: process.env.CORS_ORIGIN, credentials: true }));
-app.use(cookieParser());
-app.use(express.urlencoded({ extended: true, limit: process.env.REQUEST_BODY_LIMIT || '100kb' }));
-app.use(express.json({ limit: process.env.REQUEST_BODY_LIMIT || '100kb' }));
-
 if (process.env.TRUST_PROXY) {
   if (process.env.TRUST_PROXY === "true") app.set("trust proxy", true);
   else if (process.env.TRUST_PROXY === "false") app.set("trust proxy", false);
   else app.set("trust proxy", Number(process.env.TRUST_PROXY));
 } else {
-  // default to trusting first proxy
   app.set("trust proxy", 1);
 }
+
+app.use(cors({ origin: process.env.CORS_ORIGIN, credentials: true }));
+app.use(cookieParser());
+app.use(express.urlencoded({ extended: true, limit: process.env.REQUEST_BODY_LIMIT || '100kb' }));
+app.use(express.json({ limit: process.env.REQUEST_BODY_LIMIT || '100kb' }));
+
+app.use(morgan('combined', { 
+    stream: { write: (message) => logger.info(message.trim()) } 
+}));
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -72,6 +74,33 @@ const generalLimiter = rateLimit({
 app.use(generalLimiter);
 
 app.use("/", urlRoutes);
+
+app.get('/health', async (req, res) => {
+    try {
+        await redisClient.ping();
+
+        await pool.query('SELECT 1'); 
+
+        return res.status(200).json({ 
+            status: 'UP', 
+            services: { 
+                redis: 'UP', 
+                postgres: 'UP' 
+            } 
+        });
+    } catch (err) {
+        logger.error('Health check failed:', { message: err.message, stack: err.stack });
+        
+        return res.status(503).json({ 
+            status: 'DOWN', 
+            services: {
+                redis: redisClient.isOpen ? 'UP' : 'DOWN',
+                postgres: 'DOWN'
+            },
+            error: err.message 
+        });
+    }
+});
 
 app.use((err, req, res, next) => {
     const statusCode = err.statusCode || 500;
