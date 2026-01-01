@@ -1,21 +1,38 @@
-import app from "./app.js";
-import { connectDB } from "./config/db.config.js";
-import { connectRedis } from "./config/redis.config.js";
+import dotenv from 'dotenv';
+import app, { setupApp } from "./app.js";
+import { initDB, closeDB } from "./config/db.config.js";
+import { initRedis, closeRedis } from "./config/redis.config.js";
+
+dotenv.config({ path: '../.env' });
 
 const PORT = process.env.PORT || 3000;
 
-async function startServer() {
-    await connectDB();
-    await connectRedis();
-    app.listen(PORT, () => {
-        console.log(`Server is running on port ${PORT}`);
-    });
-}   
+async function bootstrap() {
+    try {
+        const dbPool = await initDB();
+        const { client: redisClient } = await initRedis();
 
-startServer();
+        await setupApp({ redisClient, dbPool });
 
-//Graceful Shutdown
-process.on("SIGINT", () => {
-    console.log("Shutting down server...");
-    process.exit();
-});
+        const server = app.listen(PORT, () => {
+            console.log(`Server running on port ${PORT}`);
+        });
+
+        const shutdown = async () => {
+            console.log('\nGraceful shutdown initiated...');
+            server.close();
+            await closeRedis();
+            await closeDB();
+            process.exit(0);
+        };
+
+        process.on("SIGINT", shutdown);
+        process.on("SIGTERM", shutdown);
+
+    } catch (error) {
+        console.error("Startup failed:", error);
+        process.exit(1);
+    }
+}
+
+bootstrap();

@@ -1,42 +1,52 @@
-import redis from 'redis'
+import redis from 'redis';
 import { Queue } from 'bullmq';
 
-const client = redis.createClient({
-    username: process.env.REDIS_USER,
-    password: process.env.REDIS_PASSWORD,
-    socket: {
-        host: process.env.REDIS_HOST,
-        port: process.env.REDIS_PORT,
-    }
-})
+let client = null;
+let clickQueue = null;
 
-client.on('error', (err)=>{
-    console.error('Redis Client Error', err);
-})
+export const initRedis = async () => {
+    if (client) return { client, clickQueue };
 
-client.on('ready', ()=>{
-    console.log('Redis Client Connected');
-})
-
-const clickQueue = new Queue('Clicks', {
-    connection: {
-        host: process.env.REDIS_HOST,
-        port: process.env.REDIS_PORT,
+    client = redis.createClient({
         username: process.env.REDIS_USER,
         password: process.env.REDIS_PASSWORD,
-    }
-});
-console.log('BullMQ Job Queue Created');
+        socket: {
+            host: process.env.REDIS_HOST,
+            port: process.env.REDIS_PORT,
+        }
+    });
 
-const connectRedis = async () => {
-    try{
-        await client.connect();
-        console.log('Connected to Redis');
-    }
-    catch(err){
-        console.error('Could not connect to Redis', err);
-        process.exit(1);
-    }
-}
+    client.on('error', (err) => console.error('Redis Client Error', err));
+    
+    await client.connect();
+    console.log('Redis connected');
 
-export { client, connectRedis, clickQueue };
+    clickQueue = new Queue('Clicks', {
+        connection: {
+            host: process.env.REDIS_HOST,
+            port: process.env.REDIS_PORT,
+            username: process.env.REDIS_USER,
+            password: process.env.REDIS_PASSWORD,
+        }
+    });
+    console.log('BullMQ Job Queue Created');
+
+    return { client, clickQueue };
+};
+
+export const getRedisClient = () => {
+    if (!client) throw new Error('Redis not initialized');
+    return client;
+};
+
+export const getClickQueue = () => {
+    if (!clickQueue) throw new Error('ClickQueue not initialized');
+    return clickQueue;
+};
+
+export const closeRedis = async () => {
+    if (client) {
+        await client.quit();
+        client = null;
+    }
+};

@@ -1,27 +1,28 @@
 import pg from 'pg';
 const { Pool } = pg;
 
-const pool = new Pool({
-    user: "postgres",
-    host: "localhost",
-    database: "url_shortener",
-    password: "22BCE2130",
-    port: 5432,
-})
+let pool = null;
 
-// const pool = new Pool({
-//     connectionString: process.env.DATABASE_URL
-// })
+export const initDB = async () => {
+    if (pool) return pool;
 
-export const connectDB = async () => {
-    try{
-        await pool.connect();
-        console.log('Connected to PostgreSQL Database');
+    pool = new Pool({
+        connectionString: process.env.DATABASE_URL || `postgresql://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`
+    });
+
+    await pool.query('SELECT 1');
+    console.log('PostgreSQL connected');
+    return pool;
+};
+
+export const getDB = () => {
+    if (!pool) throw new Error('DB not initialized');
+    return pool;
+};
+
+export const closeDB = async () => {
+    if (pool) {
+        await pool.end();
+        pool = null;
     }
-    catch(err){
-        console.error('Could not connect to PostgreSQL Database', err);
-        process.exit(1);
-    }
-}
-
-export default pool;
+};

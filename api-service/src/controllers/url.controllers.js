@@ -1,4 +1,4 @@
-import pool from "../config/db.config.js";
+import { getDB } from "../config/db.config.js";
 import { getLongUrl } from "../services/shortener.service.js";
 import { recordClick } from "../services/analytics.service.js";
 import { nanoid } from "nanoid";
@@ -26,7 +26,18 @@ const redirect = async (req, res) => {
 const shorten = async (req, res) => {
   const { longUrl } = req.body;
 
-  try{
+  try {
+    const pool = getDB();
+
+    const existing = await pool.query(
+      "SELECT code FROM short_urls WHERE long_url = $1",
+      [longUrl]
+    );
+
+    if (existing.rows.length > 0) {
+      return res.json({ shortUrl: `${process.env.BASE_URL}/${existing.rows[0].code}` });
+    }
+
     const code = nanoid(5);
 
     await pool.query(
